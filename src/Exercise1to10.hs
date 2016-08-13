@@ -1,4 +1,4 @@
-module Exercise1to10 where
+module Exercise1to10(myLast, myButLast, elementAt, myLength, pack, encode) where
 
 -- Problem 1
 myLast :: [a] -> a
