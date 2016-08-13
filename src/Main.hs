@@ -2,9 +2,15 @@ module Main where
 import Prelude
 import Data.Char
 import Data.String
+import Animales
+import System.IO
 
 main :: IO()
-main = print "Hello world!"
+main = do
+    hSetBuffering stdin NoBuffering
+    play (Animal "Dog")
+    return ()
+
 trailingString :: String -> Char -> String
 trailingString [] _ = []
 trailingString (x:xs) y = if x == y then xs else trailingString xs y
