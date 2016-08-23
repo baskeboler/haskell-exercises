@@ -3,12 +3,12 @@
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-module LabProgFunc where
+module Main where
 
 import Control.Applicative (pure)
 import Control.DeepSeq (NFData, ($!!))
 import Control.Monad (void)
-import Data.Map (Map, empty, foldWithKey, singleton)
+import Data.Map (Map, empty, foldrWithKey, singleton)
 import GHC.Generics (Generic)
 import System.Environment (getArgs, getProgName)
 import System.IO (hPutStrLn, stderr)
@@ -118,6 +118,13 @@ data ExprF a
     | NegF a
     | Const Int 
     deriving (Eq, Show, Read)
+toExF :: Expresión -> Expr
+toExF (Literal l )= Fx (Const $ fromInteger l)
+toExF (Suma a b)= Fx (SumaF (toExF a) (toExF b))
+toExF (Resta a b)= Fx (RestaF (toExF a) (toExF b))
+toExF (Multiplicación a b)= Fx (MultF (toExF a) (toExF b))
+toExF (División a b)= Fx (DivF (toExF a) (toExF b))
+toExF (Negativo a)= Fx (NegF (toExF a))
 
 instance Functor ExprF where
     fmap f (Const e) = Const e 
@@ -173,6 +180,7 @@ eval = alg . (fmap eval) . unFix
 -- s = Fx . Fix
 z :: Expr 
 z = Fx (Const 0)
+e = Fx (SumaF (Fx (Const 5)) (Fx (Const 3)))
 cataExpresión
     :: (a -> a -> a)
     -> (a -> a -> a)
@@ -189,3 +197,69 @@ cataExpresión
     negativo
     literal
     = undefined
+
+type Atributos
+    = Map String String
+newtype Documento
+    = Documento Elemento
+    deriving Show
+data Elemento
+    = Elemento String Atributos [Elemento]
+    | Texto String
+    deriving Show
+--instance Show Elemento where
+myshow (Texto t) = t
+myshow (Elemento name attrs elems)= openTag ++ inside ++ closeTag
+    where openTag = "<" ++ name  ++ attribs ++">"
+          closeTag = "</" ++ name ++ ">"
+          inside = foldr (++) "" $ map myshow elems
+          attribs = foldrWithKey (\k v b -> b  ++ " " ++ k ++ "=\"" ++ v++ "\"") "" attrs
+htmlE, headE, bodyE, divE :: [Elemento] -> Elemento
+htmlE = Elemento "html" (singleton "xmlns" "http://www.w3.org/1999/xhtml")
+headE = Elemento "head" empty
+bodyE = Elemento "body" empty
+divE = Elemento "div" empty
+
+styleE, titleE, h1E :: String -> Elemento
+styleE  s = Elemento "style" (singleton "type" "text/css") [Texto s]
+titleE s = Elemento "title" empty [Texto s]
+h1E s = Elemento "h1" empty [Texto s]
+pE s = Elemento "p" empty [Texto s]
+
+showP :: Show a => a -> Elemento
+showP = pE . show
+
+pp=Documento $ htmlE $ [headE [styleE estilo], bodyE $ [showP "Hola"]]
+class RenderXHTML a where
+    render :: a -> String
+
+instance RenderXHTML Documento where
+    render (Documento raiz)
+        = myshow raiz
+
+expresionDoc :: Expresión -> Documento
+expresionDoc e = pp
+estilo :: String
+estilo
+    = unlines
+        [ "div, p {"
+        , " border: 1px solid black;"
+        , " float: left;"
+        , " margin: 1em;"
+        , "}"
+        , "h1 {"
+        , " clear: both;"
+        , "}"]
+
+deriving instance Generic Expresión
+instance NFData Expresión
+main :: IO ()
+main = do
+    args <- getArgs
+    case args of
+        (nombreArchivo : expresiónTexto : _) -> do
+            expresión <- pure $!! read expresiónTexto
+            putStrLn $ render $ expresionDoc$  expresión
+        _ -> do
+            progName <- getProgName
+            hPutStrLn stderr $ "Uso: " ++ progName ++ " ARCHIVO.xhtml EXPRESIÓN"

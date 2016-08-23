@@ -17,7 +17,7 @@ coinsp =   [1,2,5,10,20,50,100,200]
 change [] _ = []
 change _ 0 = [[]]
 change coins amount = [(c, head coins):rest|
-    c <- [0..amount `div`(head coins) +1],
+    c <- [0..amount `div`(head coins)],
     c*(head coins) <= amount,
     rest <- (change (tail coins) (amount-c*(head coins))),
     val ((c, head coins):rest) == amount]
